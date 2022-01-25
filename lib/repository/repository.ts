@@ -14,6 +14,13 @@ import JsonConverter from "./json-converter";
 export type EntityCreationData = Record<string, number | boolean | string | string[] | null>;
 
 /**
+ * Optional parameters when creating a {@link Repository}
+ */
+export type RepositoryOptions = {
+  defaultTtl?: number
+};
+
+/**
  * A repository is the main interaction point for reading, writing, and
  * removing {@link Entity | Entities} from Redis. Create one by passing
  * in a {@link Schema} and a {@link Client}. Then use the {@link Repository.fetch},
@@ -56,6 +63,7 @@ export default class Repository<TEntity extends Entity> {
   private client: Client;
   private jsonConverter: JsonConverter;
   private hashConverter: HashConverter;
+  private options: RepositoryOptions;
 
   /**
    * Constructs a new Repository.
@@ -63,11 +71,12 @@ export default class Repository<TEntity extends Entity> {
    * @param schema The {@link Schema} for this Repository.
    * @param client An open {@link Client}.
    */
-  constructor(schema: Schema<TEntity>, client: Client) {
+  constructor(schema: Schema<TEntity>, client: Client, options?: RepositoryOptions) {
     this.schema = schema;
     this.client = client;
     this.jsonConverter = new JsonConverter(this.schema.definition);
     this.hashConverter = new HashConverter(this.schema.definition);
+    this.options = options ?? {};
   }
 
   /**
@@ -125,7 +134,7 @@ export default class Repository<TEntity extends Entity> {
    * Save the {@link Entity} to Redis. If it already exists, it will be updated. If it doesn't
    * exist, it will be created.
    * @param entity The Entity to save.
-   * @param ttl Optional time-to-live for the Entity
+   * @param ttl Optional time-to-live for the Entity. Can overwrite defaultTtl.
    * @returns The ID of the Entity just saved.
    */
   async save(entity: TEntity, ttl?: number): Promise<string> {
@@ -145,8 +154,9 @@ export default class Repository<TEntity extends Entity> {
       await this.client.hsetall(key, hashData);
     }
 
-    if (typeof ttl != "undefined") {
-      await this.client.expires(key, ttl);
+    const entityTtl = ttl ?? this.options.defaultTtl;
+    if (typeof entityTtl != "undefined") {
+      await this.client.expires(key, entityTtl);
     }
 
     return entity.entityId;
