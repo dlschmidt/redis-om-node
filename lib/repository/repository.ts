@@ -125,9 +125,10 @@ export default class Repository<TEntity extends Entity> {
    * Save the {@link Entity} to Redis. If it already exists, it will be updated. If it doesn't
    * exist, it will be created.
    * @param entity The Entity to save.
+   * @param ttl Optional time-to-live for the Entity
    * @returns The ID of the Entity just saved.
    */
-  async save(entity: TEntity): Promise<string> {
+  async save(entity: TEntity, ttl?: number): Promise<string> {
 
     let key = this.makeKey(entity.entityId);
 
@@ -142,6 +143,10 @@ export default class Repository<TEntity extends Entity> {
     } else {
       let hashData = this.hashConverter.toHashData(entity.entityData);
       await this.client.hsetall(key, hashData);
+    }
+
+    if (typeof ttl != "undefined") {
+      await this.client.expires(key, ttl);
     }
 
     return entity.entityId;
