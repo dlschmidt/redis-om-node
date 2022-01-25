@@ -162,6 +162,12 @@ export default class Client {
     await this.shim!.execute<string>([ 'JSON.SET', key, '.', json ]);
   }
 
+  /** @internal */
+  async expires(key: string, seconds: number) {
+    this.validateShimOpen();
+    await this.shim!.execute<void>([ 'EXPIRES', key, seconds.toString() ]);
+  }
+
   /**
    * @returns Whether a connection is already open
    */
